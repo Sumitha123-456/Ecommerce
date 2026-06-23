@@ -287,7 +287,7 @@ def place_order():
         'user_id': session['user_id']
     })
 
-    return redirect('/orders')
+  return render_template("order_success.html")
 
 # -----------------------------
 # ORDERS
