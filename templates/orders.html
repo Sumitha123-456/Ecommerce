@@ -1,81 +1,34 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Order History</title>
+<h1>My Orders</h1>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-          rel="stylesheet">
-</head>
+{% if orders %}
 
-<body>
+    {% for order in orders %}
 
-<nav class="navbar navbar-dark bg-primary">
+    <div style="border:1px solid #ccc; padding:15px; margin:15px;">
 
-    <div class="container">
+        <h3>{{ order.product_name }}</h3>
 
-        <span class="navbar-brand">
-            Order History
-        </span>
+        <p><strong>Price:</strong> ₹{{ order.price }}</p>
 
-        <a href="/"
-           class="btn btn-light">
-            Home
-        </a>
+        <p>
+            <strong>Status:</strong>
+            <span style="color:green;">
+                {{ order.status }}
+            </span>
+        </p>
+
+        {% if order.image %}
+        <img src="{{ url_for('static',
+        filename='uploads/' + order.image) }}"
+        width="150">
+        {% endif %}
 
     </div>
 
-</nav>
+    {% endfor %}
 
-<div class="container mt-4">
+{% else %}
 
-    <h2 class="mb-4">
-        My Orders
-    </h2>
+    <h2>No Orders Found</h2>
 
-    {% if orders %}
-
-    <table class="table table-bordered table-striped">
-
-        <thead>
-
-            <tr>
-
-                <th>User</th>
-                <th>Product ID</th>
-
-            </tr>
-
-        </thead>
-
-        <tbody>
-
-        {% for order in orders %}
-
-            <tr>
-
-                <td>{{ order.user }}</td>
-
-                <td>{{ order.product_id }}</td>
-
-            </tr>
-
-        {% endfor %}
-
-        </tbody>
-
-    </table>
-
-    {% else %}
-
-        <div class="alert alert-info">
-
-            No Orders Found
-
-        </div>
-
-    {% endif %}
-
-</div>
-
-</body>
-</html>
+{% endif %}

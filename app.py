@@ -261,8 +261,6 @@ def remove_cart(id):
     return redirect('/cart')
 
 # -----------------------------
-# PLACE ORDER
-# -----------------------------
 @app.route('/place_order')
 def place_order():
 
@@ -275,20 +273,23 @@ def place_order():
 
     for item in cart_items:
 
-        mongo.db.orders.insert_one({
+        product = mongo.db.products.find_one({
+            '_id': ObjectId(item['product_id'])
+        })
 
+        mongo.db.orders.insert_one({
             'user_id': session['user_id'],
             'user': session['username'],
-            'product_id': item['product_id']
-
+            'product_id': item['product_id'],
+            'product_name': product['name'],
+            'price': product['price'],
+            'image': product.get('image', ''),
+            'status': 'Order Placed'
         })
 
     mongo.db.cart.delete_many({
         'user_id': session['user_id']
     })
-
-  
-
 
     return render_template('order_success.html')
 
