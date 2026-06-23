@@ -1,15 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Order Success</title>
+
+    <style>
+        body{
+            margin:0;
+            padding:0;
+            font-family:Arial, sans-serif;
+            background:#f4f6f9;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+        }
+
+        .success-box{
+            background:white;
+            padding:40px;
+            border-radius:15px;
+            box-shadow:0 0 20px rgba(0,0,0,0.1);
+            text-align:center;
+            width:450px;
+        }
+
+        .checkmark{
+            font-size:80px;
+            color:green;
+        }
+
+        h1{
+            color:#28a745;
+            margin-top:10px;
+        }
+
+        p{
+            color:#555;
+            font-size:18px;
+            margin-bottom:25px;
+        }
+
+        .btn{
+            display:inline-block;
+            text-decoration:none;
+            padding:12px 25px;
+            margin:10px;
+            border-radius:8px;
+            color:white;
+            font-weight:bold;
+        }
+
+        .orders{
+            background:#007bff;
+        }
+
+        .shop{
+            background:#28a745;
+        }
+
+        .btn:hover{
+            opacity:0.9;
+        }
+    </style>
 </head>
 <body>
-    <center>
-        <h1 style="color:green;">✅ Order Placed Successfully</h1>
-        <p>Thank you for your purchase.</p>
 
-        <a href="/orders">View Orders</a><br><br>
-        <a href="/">Continue Shopping</a>
-    </center>
+    <div class="success-box">
+
+        <div class="checkmark">✅</div>
+
+        <h1>Order Placed Successfully!</h1>
+
+        <p>
+            Thank you for shopping with us.<br>
+            Your order has been placed successfully.
+        </p>
+
+        <a href="/orders" class="btn orders">
+            View Orders
+        </a>
+
+        <a href="/" class="btn shop">
+            Continue Shopping
+        </a>
+
+    </div>
+
 </body>
 </html>
