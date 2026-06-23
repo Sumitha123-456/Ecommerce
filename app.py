@@ -23,8 +23,11 @@ mongo = PyMongo(app)
 # -----------------------------@app.route('/')
 @app.route('/')
 def home():
-    return "Hello Railway"
-# REGISTER
+    try:
+        mongo.db.products.find_one()
+        return "MongoDB Connected Successfully"
+    except Exception as e:
+        return f"MongoDB Error: {e}"
 # -----------------------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
