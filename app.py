@@ -287,7 +287,10 @@ def place_order():
         'user_id': session['user_id']
     })
 
-  return render_template("order_success.html")
+  
+
+
+    return render_template('order_success.html')
 
 # -----------------------------
 # ORDERS
