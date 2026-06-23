@@ -20,12 +20,13 @@ print("MONGO_URI =", app.config.get("MONGO_URI"))
 mongo = PyMongo(app)
 # -----------------------------
 # HOME
-# -----------------------------
-@app.route('/')
+# -----------------------------@app.route('/')
 def home():
-    products = list(mongo.db.products.find())
-    return render_template('dashboard.html', products=products)
-
+    try:
+        products = list(mongo.db.products.find())
+        return f"MongoDB Connected! Products found: {len(products)}"
+    except Exception as e:
+        return f"MongoDB Error: {str(e)}"
 # -----------------------------
 # REGISTER
 # -----------------------------
