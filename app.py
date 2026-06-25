@@ -372,6 +372,10 @@ def view_graph():
 @app.route("/graph.png")
 def graph_png():
     return graph.get_graph().draw_mermaid_png()
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
 
 # =====================================================
 # RUN
