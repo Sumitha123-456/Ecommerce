@@ -157,7 +157,7 @@ def login():
         return "Invalid login"
 
     return render_template('login.html')
-
+    
 # =====================================================
 # ADMIN
 # =====================================================
@@ -176,18 +176,46 @@ def admin():
 
 # =====================================================
 # CART
-# =====================================================
+@app.route('/add_to_cart/<id>')
+def add_to_cart(id):
+
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    mongo.db.cart.insert_one({
+        'user_id': session['user_id'],
+        'product_id': str(id),
+        'added_at': datetime.now()
+    })
+
+    return redirect('/cart')
+
 @app.route('/cart')
 def cart():
 
+    if 'user_id' not in session:
+        return redirect('/login')
+
     items = []
-    for item in mongo.db.cart.find({'user_id': session.get('user_id')}):
-        product = mongo.db.products.find_one({'_id': ObjectId(item['product_id'])})
+
+    cart_items = mongo.db.cart.find({'user_id': session['user_id']})
+
+    for item in cart_items:
+
+        # SAFE CHECK (fix KeyError)
+        product_id = item.get('product_id')
+
+        if not product_id:
+            continue  # skip broken records
+
+        product = mongo.db.products.find_one({
+            '_id': ObjectId(product_id)
+        })
+
         if product:
             items.append(product)
 
-    return render_template("cart.html", items=items)
-
+    return render_template('cart.html', items=items)
 # =====================================================
 # ORDERS
 # =====================================================
