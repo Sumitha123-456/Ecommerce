@@ -34,10 +34,9 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 mongo = PyMongo(app)
 
-# =====================================================
-# LANGGRAPH (UNCHANGED)
-# =====================================================
-
+# ========================
+# LANGGRAPH
+# ========================
 def router(state):
     msg = state["message"].lower()
 
@@ -72,7 +71,6 @@ def order_node(state):
 
 
 graph = StateGraph(dict)
-
 graph.add_node("router", router)
 graph.add_node("chat_node", chat_node)
 graph.add_node("product_node", product_node)
@@ -96,6 +94,7 @@ graph.add_edge("order_node", END)
 
 agent = graph.compile()
 
+
 def run_agent(message, products, orders):
     return agent.invoke({
         "message": message,
@@ -103,19 +102,20 @@ def run_agent(message, products, orders):
         "orders": orders
     })
 
-# =====================================================
+# ========================
 # HOME
-# =====================================================
+# ========================
 @app.route('/')
 def home():
     products = list(mongo.db.products.find())
     return render_template('dashboard.html', products=products)
 
-# =====================================================
-# REGISTER (FIXED SAFETY)
-# =====================================================
+# ========================
+# REGISTER
+# ========================
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+
     if request.method == 'POST':
 
         if mongo.db.users.find_one({'username': request.form['username']}):
@@ -136,11 +136,12 @@ def register():
 
     return render_template('register.html')
 
-# =====================================================
-# LOGIN (🔥 FIXED BCRYPT ERROR HERE)
-# =====================================================
+# ========================
+# LOGIN (FIXED)
+# ========================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+
     if request.method == 'POST':
 
         user = mongo.db.users.find_one({'username': request.form['username']})
@@ -149,7 +150,6 @@ def login():
 
             stored_password = user['password']
 
-            # 🔥 FIX: convert string → bytes if needed
             if isinstance(stored_password, str):
                 stored_password = stored_password.encode('utf-8')
 
@@ -165,9 +165,9 @@ def login():
 
     return render_template('login.html')
 
-# =====================================================
+# ========================
 # ADMIN
-# =====================================================
+# ========================
 @app.route('/admin')
 def admin():
 
@@ -181,9 +181,71 @@ def admin():
         total_orders=len(orders)
     )
 
-# =====================================================
+# ========================
+# ADD PRODUCT
+# ========================
+@app.route('/add_product', methods=['GET', 'POST'])
+def add_product():
+
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if request.method == 'POST':
+
+        file = request.files['image']
+        filename = file.filename
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        mongo.db.products.insert_one({
+            "name": request.form['name'],
+            "price": request.form['price'],
+            "description": request.form['description'],
+            "image": filename
+        })
+
+        return redirect('/admin')
+
+    return render_template('add_product.html')
+
+# ========================
+# EDIT PRODUCT
+# ========================
+@app.route('/edit_product/<id>', methods=['GET', 'POST'])
+def edit_product(id):
+
+    product = mongo.db.products.find_one({'_id': ObjectId(id)})
+
+    if request.method == 'POST':
+
+        mongo.db.products.update_one(
+            {'_id': ObjectId(id)},
+            {"$set": {
+                "name": request.form['name'],
+                "price": request.form['price'],
+                "description": request.form['description']
+            }}
+        )
+
+        return redirect('/admin')
+
+    return render_template('edit_product.html', product=product)
+
+# ========================
+# DELETE PRODUCT
+# ========================
+@app.route('/delete_product/<id>')
+def delete_product(id):
+
+    try:
+        mongo.db.products.delete_one({'_id': ObjectId(id)})
+    except Exception as e:
+        print("Delete error:", e)
+
+    return redirect('/admin')
+
+# ========================
 # CART
-# =====================================================
+# ========================
 @app.route('/add_to_cart/<id>')
 def add_to_cart(id):
 
@@ -191,12 +253,12 @@ def add_to_cart(id):
         return redirect('/login')
 
     mongo.db.cart.insert_one({
-        'user_id': session['user_id'],
-        'product_id': str(id),
-        'added_at': datetime.now()
+        "user_id": session['user_id'],
+        "product_id": str(id),
+        "added_at": datetime.now()
     })
 
-    return redirect('/cart')
+    return redirect('/')
 
 @app.route('/cart')
 def cart():
@@ -214,27 +276,25 @@ def cart():
         if not product_id:
             continue
 
-        product = mongo.db.products.find_one({
-            '_id': ObjectId(product_id)
-        })
+        product = mongo.db.products.find_one({'_id': ObjectId(product_id)})
 
         if product:
             items.append(product)
 
     return render_template('cart.html', items=items)
 
-# =====================================================
+# ========================
 # ORDERS
-# =====================================================
+# ========================
 @app.route('/orders')
 def orders():
 
     user_orders = list(mongo.db.orders.find({'user_id': session.get('user_id')}))
     return render_template("orders.html", orders=user_orders)
 
-# =====================================================
+# ========================
 # AI CHAT
-# =====================================================
+# ========================
 @app.route('/ai-chat', methods=['POST'])
 def ai_chat():
 
@@ -248,8 +308,8 @@ def ai_chat():
 
     return jsonify({"reply": result["response"]})
 
-# =====================================================
+# ========================
 # RUN
-# =====================================================
+# ========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
