@@ -13,55 +13,44 @@ from datetime import datetime
 load_dotenv()
 
 # ========================
-# GROQ AI SETUP
+# GROQ AI
 # ========================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-llm = None
-if GROQ_API_KEY:
-    llm = ChatGroq(
-        model_name="llama-3.3-70b-versatile",
-        groq_api_key=GROQ_API_KEY
-    )
-    print("Groq AI enabled")
-else:
-    print("Groq API missing")
+llm = ChatGroq(
+    model_name="llama-3.3-70b-versatile",
+    groq_api_key=GROQ_API_KEY
+)
 
 # ========================
-# FLASK APP
+# APP
 # ========================
 app = Flask(__name__)
 app.config.from_object(Config)
-
 app.secret_key = os.getenv("SECRET_KEY", "secret")
 
 UPLOAD_FOLDER = "static/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# ========================
-# MONGO INIT
-# ========================
 mongo = PyMongo(app)
 
-# ==========================================================
-# 🔥 LANGGRAPH SETUP (Ecommerce AI Brain)
-# ==========================================================
+# =====================================================
+# LANGGRAPH
+# =====================================================
 
 def router(state):
     msg = state["message"].lower()
 
-    if "price" in msg or "buy" in msg or "product" in msg:
+    if "price" in msg or "buy" in msg:
         return "product_node"
-    elif "order" in msg or "cart" in msg:
+    elif "order" in msg:
         return "order_node"
-    else:
-        return "chat_node"
+    return "chat_node"
 
 
 def chat_node(state):
-    response = llm.invoke(state["message"])
-    return {"response": response.content}
+    res = llm.invoke(state["message"])
+    return {"response": res.content}
 
 
 def product_node(state):
@@ -71,39 +60,17 @@ def product_node(state):
     for p in products:
         text += f"{p['name']} - ₹{p['price']} - {p['description']}\n"
 
-    prompt = f"""
-    You are an ecommerce assistant.
-
-    Products:
-    {text}
-
-    User question:
-    {state['message']}
-
-    Recommend best products clearly.
-    """
-
-    response = llm.invoke(prompt)
-    return {"response": response.content}
+    prompt = f"Products:\n{text}\nUser:{state['message']}"
+    res = llm.invoke(prompt)
+    return {"response": res.content}
 
 
 def order_node(state):
     orders = state.get("orders", [])
-
-    prompt = f"""
-    You are an order assistant.
-
-    Orders:
-    {orders}
-
-    Explain order status clearly.
-    """
-
-    response = llm.invoke(prompt)
-    return {"response": response.content}
+    res = llm.invoke(f"Orders: {orders}")
+    return {"response": res.content}
 
 
-# Build Graph
 graph = StateGraph(dict)
 
 graph.add_node("router", router)
@@ -129,6 +96,7 @@ graph.add_edge("order_node", END)
 
 agent = graph.compile()
 
+
 def run_agent(message, products, orders):
     return agent.invoke({
         "message": message,
@@ -136,20 +104,102 @@ def run_agent(message, products, orders):
         "orders": orders
     })
 
-# ========================
+# =====================================================
 # HOME
-# ========================
+# =====================================================
 @app.route('/')
 def home():
     products = list(mongo.db.products.find())
     return render_template('dashboard.html', products=products)
 
-# ========================
-# ALL YOUR ROUTES (UNCHANGED)
-# ========================
-# (register, login, admin, cart, etc remain same)
-# -------------------------------------------------
+# =====================================================
+# REGISTER
+# =====================================================
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
 
+        if mongo.db.users.find_one({'username': request.form['username']}):
+            return "User Exists"
+
+        hashed = bcrypt.hashpw(
+            request.form['password'].encode('utf-8'),
+            bcrypt.gensalt()
+        )
+
+        mongo.db.users.insert_one({
+            "username": request.form['username'],
+            "password": hashed,
+            "role": "user"
+        })
+
+        return redirect('/login')
+
+    return render_template('register.html')
+
+# =====================================================
+# LOGIN
+# =====================================================
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+
+        user = mongo.db.users.find_one({'username': request.form['username']})
+
+        if user and bcrypt.checkpw(
+            request.form['password'].encode('utf-8'),
+            user['password']
+        ):
+            session['user_id'] = str(user['_id'])
+            session['username'] = user['username']
+            return redirect('/')
+
+        return "Invalid login"
+
+    return render_template('login.html')
+
+# =====================================================
+# ADMIN
+# =====================================================
+@app.route('/admin')
+def admin():
+
+    products = list(mongo.db.products.find())
+    orders = list(mongo.db.orders.find())
+
+    return render_template(
+        "admin.html",
+        products=products,
+        total_products=len(products),
+        total_orders=len(orders)
+    )
+
+# =====================================================
+# CART
+# =====================================================
+@app.route('/cart')
+def cart():
+
+    items = []
+    for item in mongo.db.cart.find({'user_id': session.get('user_id')}):
+        product = mongo.db.products.find_one({'_id': ObjectId(item['product_id'])})
+        if product:
+            items.append(product)
+
+    return render_template("cart.html", items=items)
+
+# =====================================================
+# ORDERS
+# =====================================================
+@app.route('/orders')
+def orders():
+
+    user_orders = list(mongo.db.orders.find({'user_id': session.get('user_id')}))
+    return render_template("orders.html", orders=user_orders)
+
+# =====================================================
+# AI CHAT (LANGGRAPH)
+# =====================================================
 @app.route('/ai-chat', methods=['POST'])
 def ai_chat():
 
@@ -163,9 +213,8 @@ def ai_chat():
 
     return jsonify({"reply": result["response"]})
 
-# ========================
+# =====================================================
 # RUN
-# ========================
+# =====================================================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=8080, debug=True)
