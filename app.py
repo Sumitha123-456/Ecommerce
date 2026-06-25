@@ -13,7 +13,7 @@ from datetime import datetime
 load_dotenv()
 
 # ========================
-# GROQ AI
+# AI SETUP
 # ========================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -23,7 +23,7 @@ llm = ChatGroq(
 )
 
 # ========================
-# APP
+# APP SETUP
 # ========================
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -34,85 +34,110 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 mongo = PyMongo(app)
 
-# ========================
-# LANGGRAPH
-# ========================
-def router(state):
+# =====================================================
+# LANGGRAPH STATE
+# =====================================================
+from typing import TypedDict
+
+class GraphState(TypedDict):
+    message: str
+    products: list
+    orders: list
+    response: str
+
+# =====================================================
+# LANGGRAPH NODES
+# =====================================================
+
+def router(state: GraphState):
     msg = state["message"].lower()
 
-    if "price" in msg or "buy" in msg:
+    if "price" in msg or "buy" in msg or "product" in msg:
         return "product_node"
-    elif "order" in msg:
+    elif "order" in msg or "cart" in msg:
         return "order_node"
-    return "chat_node"
+    else:
+        return "chat_node"
 
 
-def chat_node(state):
+def chat_node(state: GraphState):
+    print("🟢 CHAT NODE TRIGGERED")
     res = llm.invoke(state["message"])
     return {"response": res.content}
 
 
-def product_node(state):
-    products = state["products"]
+def product_node(state: GraphState):
+    print("🟡 PRODUCT NODE TRIGGERED")
 
     text = ""
-    for p in products:
+    for p in state["products"]:
         text += f"{p['name']} - ₹{p['price']} - {p['description']}\n"
 
-    prompt = f"Products:\n{text}\nUser:{state['message']}"
+    prompt = f"""
+    Ecommerce assistant:
+
+    Products:
+    {text}
+
+    Question:
+    {state['message']}
+    """
+
     res = llm.invoke(prompt)
     return {"response": res.content}
 
 
-def order_node(state):
-    orders = state.get("orders", [])
-    res = llm.invoke(f"Orders: {orders}")
+def order_node(state: GraphState):
+    print("🔵 ORDER NODE TRIGGERED")
+
+    res = llm.invoke(f"Orders: {state['orders']}")
     return {"response": res.content}
 
+# =====================================================
+# LANGGRAPH BUILD
+# =====================================================
+graph = StateGraph(GraphState)
 
-graph = StateGraph(dict)
-graph.add_node("router", router)
 graph.add_node("chat_node", chat_node)
 graph.add_node("product_node", product_node)
 graph.add_node("order_node", order_node)
 
-graph.set_entry_point("router")
+graph.set_entry_point("chat_node")
 
 graph.add_conditional_edges(
-    "router",
+    "chat_node",
     router,
     {
-        "chat_node": "chat_node",
+        "chat_node": END,
         "product_node": "product_node",
         "order_node": "order_node"
     }
 )
 
-graph.add_edge("chat_node", END)
 graph.add_edge("product_node", END)
 graph.add_edge("order_node", END)
 
 agent = graph.compile()
 
-
 def run_agent(message, products, orders):
     return agent.invoke({
         "message": message,
         "products": products,
-        "orders": orders
+        "orders": orders,
+        "response": ""
     })
 
-# ========================
+# =====================================================
 # HOME
-# ========================
+# =====================================================
 @app.route('/')
 def home():
     products = list(mongo.db.products.find())
     return render_template('dashboard.html', products=products)
 
-# ========================
+# =====================================================
 # REGISTER
-# ========================
+# =====================================================
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 
@@ -136,9 +161,9 @@ def register():
 
     return render_template('register.html')
 
-# ========================
-# LOGIN (FIXED)
-# ========================
+# =====================================================
+# LOGIN
+# =====================================================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
 
@@ -147,15 +172,13 @@ def login():
         user = mongo.db.users.find_one({'username': request.form['username']})
 
         if user:
-
-            stored_password = user['password']
-
-            if isinstance(stored_password, str):
-                stored_password = stored_password.encode('utf-8')
+            stored = user['password']
+            if isinstance(stored, str):
+                stored = stored.encode('utf-8')
 
             if bcrypt.checkpw(
                 request.form['password'].encode('utf-8'),
-                stored_password
+                stored
             ):
                 session['user_id'] = str(user['_id'])
                 session['username'] = user['username']
@@ -165,9 +188,9 @@ def login():
 
     return render_template('login.html')
 
-# ========================
+# =====================================================
 # ADMIN
-# ========================
+# =====================================================
 @app.route('/admin')
 def admin():
 
@@ -181,14 +204,11 @@ def admin():
         total_orders=len(orders)
     )
 
-# ========================
+# =====================================================
 # ADD PRODUCT
-# ========================
+# =====================================================
 @app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
-
-    if 'user_id' not in session:
-        return redirect('/login')
 
     if request.method == 'POST':
 
@@ -207,9 +227,9 @@ def add_product():
 
     return render_template('add_product.html')
 
-# ========================
+# =====================================================
 # EDIT PRODUCT
-# ========================
+# =====================================================
 @app.route('/edit_product/<id>', methods=['GET', 'POST'])
 def edit_product(id):
 
@@ -230,22 +250,22 @@ def edit_product(id):
 
     return render_template('edit_product.html', product=product)
 
-# ========================
+# =====================================================
 # DELETE PRODUCT
-# ========================
+# =====================================================
 @app.route('/delete_product/<id>')
 def delete_product(id):
 
     try:
         mongo.db.products.delete_one({'_id': ObjectId(id)})
-    except Exception as e:
-        print("Delete error:", e)
+    except:
+        pass
 
     return redirect('/admin')
 
-# ========================
+# =====================================================
 # CART
-# ========================
+# =====================================================
 @app.route('/add_to_cart/<id>')
 def add_to_cart(id):
 
@@ -268,33 +288,67 @@ def cart():
 
     items = []
 
-    cart_items = mongo.db.cart.find({'user_id': session['user_id']})
+    for item in mongo.db.cart.find({'user_id': session['user_id']}):
 
-    for item in cart_items:
-
-        product_id = item.get('product_id')
-        if not product_id:
+        pid = item.get('product_id')
+        if not pid:
             continue
 
-        product = mongo.db.products.find_one({'_id': ObjectId(product_id)})
-
+        product = mongo.db.products.find_one({'_id': ObjectId(pid)})
         if product:
             items.append(product)
 
     return render_template('cart.html', items=items)
 
-# ========================
+# =====================================================
+# PLACE ORDER
+# =====================================================
+@app.route('/place_order')
+def place_order():
+
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    cart_items = list(mongo.db.cart.find({'user_id': session['user_id']}))
+
+    for item in cart_items:
+        product = mongo.db.products.find_one({'_id': ObjectId(item['product_id'])})
+
+        if product:
+            mongo.db.orders.insert_one({
+                "user_id": session['user_id'],
+                "product_name": product['name'],
+                "price": product['price'],
+                "status": "Placed",
+                "created_at": datetime.now()
+            })
+
+    mongo.db.cart.delete_many({'user_id': session['user_id']})
+
+    return redirect('/order_success')
+
+# =====================================================
+# ORDER SUCCESS PAGE
+# =====================================================
+@app.route('/order_success')
+def order_success():
+    return render_template('order_success.html')
+
+# =====================================================
 # ORDERS
-# ========================
+# =====================================================
 @app.route('/orders')
 def orders():
 
-    user_orders = list(mongo.db.orders.find({'user_id': session.get('user_id')}))
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    user_orders = list(mongo.db.orders.find({'user_id': session['user_id']}))
     return render_template("orders.html", orders=user_orders)
 
-# ========================
+# =====================================================
 # AI CHAT
-# ========================
+# =====================================================
 @app.route('/ai-chat', methods=['POST'])
 def ai_chat():
 
@@ -308,8 +362,19 @@ def ai_chat():
 
     return jsonify({"reply": result["response"]})
 
-# ========================
+# =====================================================
+# LANGGRAPH VIEWER
+# =====================================================
+@app.route("/graph")
+def view_graph():
+    return graph.get_graph().draw_mermaid()
+
+@app.route("/graph.png")
+def graph_png():
+    return graph.get_graph().draw_mermaid_png()
+
+# =====================================================
 # RUN
-# ========================
+# =====================================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
