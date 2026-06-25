@@ -35,7 +35,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 mongo = PyMongo(app)
 
 # =====================================================
-# LANGGRAPH
+# LANGGRAPH (UNCHANGED)
 # =====================================================
 
 def router(state):
@@ -96,7 +96,6 @@ graph.add_edge("order_node", END)
 
 agent = graph.compile()
 
-
 def run_agent(message, products, orders):
     return agent.invoke({
         "message": message,
@@ -113,7 +112,7 @@ def home():
     return render_template('dashboard.html', products=products)
 
 # =====================================================
-# REGISTER
+# REGISTER (FIXED SAFETY)
 # =====================================================
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -138,7 +137,7 @@ def register():
     return render_template('register.html')
 
 # =====================================================
-# LOGIN
+# LOGIN (🔥 FIXED BCRYPT ERROR HERE)
 # =====================================================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -146,18 +145,26 @@ def login():
 
         user = mongo.db.users.find_one({'username': request.form['username']})
 
-        if user and bcrypt.checkpw(
-            request.form['password'].encode('utf-8'),
-            user['password']
-        ):
-            session['user_id'] = str(user['_id'])
-            session['username'] = user['username']
-            return redirect('/')
+        if user:
+
+            stored_password = user['password']
+
+            # 🔥 FIX: convert string → bytes if needed
+            if isinstance(stored_password, str):
+                stored_password = stored_password.encode('utf-8')
+
+            if bcrypt.checkpw(
+                request.form['password'].encode('utf-8'),
+                stored_password
+            ):
+                session['user_id'] = str(user['_id'])
+                session['username'] = user['username']
+                return redirect('/')
 
         return "Invalid login"
 
     return render_template('login.html')
-    
+
 # =====================================================
 # ADMIN
 # =====================================================
@@ -176,6 +183,7 @@ def admin():
 
 # =====================================================
 # CART
+# =====================================================
 @app.route('/add_to_cart/<id>')
 def add_to_cart(id):
 
@@ -202,11 +210,9 @@ def cart():
 
     for item in cart_items:
 
-        # SAFE CHECK (fix KeyError)
         product_id = item.get('product_id')
-
         if not product_id:
-            continue  # skip broken records
+            continue
 
         product = mongo.db.products.find_one({
             '_id': ObjectId(product_id)
@@ -216,6 +222,7 @@ def cart():
             items.append(product)
 
     return render_template('cart.html', items=items)
+
 # =====================================================
 # ORDERS
 # =====================================================
@@ -226,7 +233,7 @@ def orders():
     return render_template("orders.html", orders=user_orders)
 
 # =====================================================
-# AI CHAT (LANGGRAPH)
+# AI CHAT
 # =====================================================
 @app.route('/ai-chat', methods=['POST'])
 def ai_chat():
