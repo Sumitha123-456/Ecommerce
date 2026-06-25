@@ -5,6 +5,18 @@ import bcrypt
 import os
 from werkzeug.utils import secure_filename
 from config import Config
+from dotenv import load_dotenv
+import os
+from langchain_groq import ChatGroq
+
+load_dotenv()
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    api_key=GROQ_API_KEY
+)
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -312,7 +324,40 @@ def orders():
         'orders.html',
         orders=user_orders
     )
+@app.route('/ai-chat', methods=['POST'])
+def ai_chat():
 
+    question = request.json.get('message')
+
+    products = list(mongo.db.products.find())
+
+    watch_data = ""
+
+    for p in products:
+        watch_data += (
+            f"Name: {p.get('name','')}, "
+            f"Price: ₹{p.get('price','')}, "
+            f"Description: {p.get('description','')}\n"
+        )
+
+    prompt = f"""
+    You are an AI shopping assistant for a watch store.
+
+    Available watches:
+
+    {watch_data}
+
+    Customer Question:
+    {question}
+
+    Recommend watches only from the available products.
+    """
+
+    response = llm.invoke(prompt)
+
+    return {
+        "reply": response.content
+    }
 # -----------------------------
 # RUN APP
 # -----------------------------

@@ -29,6 +29,9 @@
             <a href="/logout" class="btn btn-danger">
                 Logout
             </a>
+            <button onclick="toggleChat()">
+    💬 Ask AI
+</button>
 
         </div>
 
@@ -80,9 +83,45 @@
     <h3>{{ product.name }}</h3>
 </div>
 {% endfor %}
+<div id="chatBox" style="display:none;">
+    <input type="text" id="userMessage">
+    <button onclick="sendMessage()">Send</button>
+
+    <div id="chatResponse"></div>
+</div>
     </div>
 
 </div>
+<script>
+function toggleChat() {
+    const box = document.getElementById("chatBox");
+    box.style.display =
+        box.style.display === "none"
+            ? "block"
+            : "none";
+}
+
+async function sendMessage() {
+
+    const message =
+        document.getElementById("userMessage").value;
+
+    const response = await fetch("/ai-chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            message: message
+        })
+    });
+
+    const data = await response.json();
+
+    document.getElementById("chatResponse")
+        .innerHTML = data.reply;
+}
+</script>
 
 </body>
 </html>
