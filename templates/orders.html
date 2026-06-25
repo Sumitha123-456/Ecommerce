@@ -1,3 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Orders</title>
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-BVEP36GDMB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-BVEP36GDMB');
+    </script>
+</head>
+
+<body>
+
 <h1>My Orders</h1>
 
 {% if orders %}
@@ -18,9 +36,7 @@
         </p>
 
         {% if order.image %}
-        <img src="{{ url_for('static',
-        filename='uploads/' + order.image) }}"
-        width="150">
+        <img src="{{ url_for('static', filename='uploads/' + order.image) }}" width="150">
         {% endif %}
 
     </div>
@@ -32,3 +48,12 @@
     <h2>No Orders Found</h2>
 
 {% endif %}
+<script>
+  gtag('event', 'view_orders_page', {
+    'event_category': 'engagement',
+    'event_label': 'Orders Page Viewed'
+  });
+</script>
+
+</body>
+</html>
