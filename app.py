@@ -11,6 +11,7 @@ from langgraph.graph import StateGraph, END
 from datetime import datetime
 
 load_dotenv()
+print("ENV MONGO_URI:", os.getenv("MONGO_URI"))
 
 # ========================
 # AI SETUP
@@ -27,6 +28,7 @@ llm = ChatGroq(
 # ========================
 app = Flask(__name__)
 app.config.from_object(Config)
+print("CONFIG MONGO_URI:", app.config.get("MONGO_URI"))
 app.secret_key = os.getenv("SECRET_KEY", "secret")
 
 UPLOAD_FOLDER = "static/uploads"
@@ -376,6 +378,9 @@ def graph_png():
 def logout():
     session.clear()
     return redirect('/login')
+@app.route("/langgraph")
+def langgraph_view():
+    return render_template("langgraph.html")
 
 # =====================================================
 # RUN

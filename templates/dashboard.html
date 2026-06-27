@@ -30,8 +30,8 @@
         }
 
         #chatResponse {
-            margin-top: 10px;
-            max-height: 250px;
+            margin-top: 100px;
+            max-height: 500px;
             overflow-y: auto;
         }
     </style>
@@ -43,7 +43,8 @@
     <div class="container">
 
         <span class="navbar-brand">
-            E-Commerce Store
+            E-Commerce 
+            Watch Store
         </span>
 
         <div>
@@ -59,14 +60,15 @@
             <a href="/orders" class="btn btn-info">
                 Orders
             </a>
-
-            <a href="/logout" class="btn btn-danger">
-                Logout
+             <a href="/logout" class="btn btn-info">
+                logout
             </a>
-
             <button onclick="toggleChat()" class="btn btn-primary">
                 💬 Ask AI
             </button>
+            <a href="/langgraph" class="btn btn-primary">
+    🧠 LangGraph
+</a>
 
         </div>
 
@@ -138,6 +140,10 @@
         id="userMessage"
         class="form-control"
         placeholder="Ask about watches...">
+
+
+
+        
 
     <button
         class="btn btn-primary mt-2 w-100"
